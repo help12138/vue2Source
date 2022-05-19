@@ -1,3 +1,7 @@
+/**
+ * 对象数据劫持方法
+ */
+
 class Observe{
     constructor(data){
         this.walk(data);
@@ -22,7 +26,7 @@ export function defineReactive(target, key, value){
 }
 
 export function observe(data){
-    // 数据劫持
+    // 对象数据劫持方法
 
     if (typeof data !== 'object' || data == null){
         return  // 只对对象劫持

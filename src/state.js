@@ -8,6 +8,7 @@ export function initState(vm){ // 初始化状态
 }
 
 function proxy(vm, target, key) {
+    // 用来使用数据时能直接vm.data使用 
     Object.defineProperty(vm, key,{
         get(){
             return vm[target][key]  // vm._data.name
