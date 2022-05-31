@@ -39,11 +39,64 @@
     return Constructor;
   }
 
+  // 重写数组的部分方法
+  var oldArrayProto = Array.prototype; // 数组的原型
+
+  var newArrayProto = Object.create(oldArrayProto);
+  var methods = [// 所有的变异方法
+  'push', 'pop', 'unshift', 'shift', 'reverse', 'sort', 'splice'];
+  methods.forEach(function (method) {
+    // arr.push(1,2,3)
+    newArrayProto[method] = function () {
+      var _oldArrayProto$method;
+
+      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      // 重写了数组的方法
+      var result = (_oldArrayProto$method = oldArrayProto[method]).call.apply(_oldArrayProto$method, [this].concat(args)); // 内部调用原来的方法， 函数的劫持
+
+
+      var inserted;
+      var ob = this.__ob__;
+
+      switch (method) {
+        case 'push':
+        case 'unshift':
+          inserted = args;
+
+        case 'splice':
+          inserted = args.slice(2);
+      }
+
+      if (inserted) {
+        // 对新增的内容再次劫持
+        // 由于onserveArray是Observer类的内部函数。所以需要将数据绑定到实例的自定义方法上
+        ob.observerArray(inserted);
+      }
+
+      return result;
+    };
+  });
+
   var Observe = /*#__PURE__*/function () {
     function Observe(data) {
       _classCallCheck(this, Observe);
 
-      this.walk(data);
+      Object.defineProperty(data, '__ob__', {
+        // 此处this指的是observer的实例
+        // 自定义的__ob__不可枚举
+        value: this,
+        enumerable: false
+      });
+
+      if (Array.isArray(data)) {
+        data.__proto__ = newArrayProto;
+        this.observerArray(data);
+      } else {
+        this.walk(data);
+      }
     }
 
     _createClass(Observe, [{
@@ -53,6 +106,14 @@
         // 重新定义属性
         Object.keys(data).forEach(function (key) {
           return defineReactive(data, key, data[key]);
+        });
+      }
+    }, {
+      key: "observerArray",
+      value: function observerArray(data) {
+        // 观测数组
+        data.forEach(function (item) {
+          return observe(item);
         });
       }
     }]);
@@ -76,9 +137,14 @@
     });
   }
   function observe(data) {
-    // 数据劫持
+    // 对象数据劫持方法
     if (_typeof(data) !== 'object' || data == null) {
       return; // 只对对象劫持
+    }
+
+    if (data.__ob__ instanceof Observe) {
+      // 说明对象被监测过
+      return data.__ob__;
     } // console.log(data, "数据劫持")
 
 
@@ -95,6 +161,7 @@
   }
 
   function proxy(vm, target, key) {
+    // 用来使用数据时能直接vm.data使用 
     Object.defineProperty(vm, key, {
       get: function get() {
         return vm[target][key]; // vm._data.name
